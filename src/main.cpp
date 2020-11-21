@@ -1,15 +1,17 @@
 #include <minecraft/BinaryStream.h>
-#include <minecraft/CompoundTag.h>
 #include <minecraft/Block.h>
 #include <minecraft/BlockLegacy.h>
 #include <minecraft/BlockPalette.h>
+#include <minecraft/CompoundTag.h>
+#include <minecraft/ItemRegistry.h>
 #include <minecraft/Level.h>
 #include <minecraft/Minecraft.h>
 #include <minecraft/ServerInstance.h>
 
 #include <fstream>
-#include <json.hpp>
+#include <iomanip>
 #include <iostream>
+#include <json.hpp>
 
 void generate_legacy_block_map(ServerInstance *serverInstance) {
 	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
@@ -66,7 +68,49 @@ void generate_palette(ServerInstance *serverInstance) {
 	std::cout << "Wrote palette to output file palette.nbt" << std::endl;
 }
 
+void generate_item_mapping() {
+	auto registry = static_cast<ItemRegistry*>(ItemRegistry::mItemRegistry);
+
+	auto list = nlohmann::json::object();
+	std::ifstream listFile("item_id_map.json");
+
+	listFile >> list;
+
+	auto simple = nlohmann::json::object();
+	auto complex = nlohmann::json::object();
+
+	for(auto it = list.begin(); it != list.end(); it++){
+		auto key = it.key();
+		auto firstMapped = registry->getNameFromAlias(key, 0);
+
+		auto metaMap = nlohmann::json::object();
+		for(auto meta = 1; meta < 300; meta++){
+			auto mapped = registry->getNameFromAlias(key, meta);
+			if(key != mapped && mapped != firstMapped){
+				metaMap[std::to_string(meta)] = mapped;
+			}
+		}
+		if(metaMap.size() > 0){
+			if(key != firstMapped){
+				metaMap["0"] = firstMapped;
+			}
+			complex[key] = metaMap;
+		}else if(key != firstMapped){
+			simple[key] = firstMapped;
+		}
+	}
+
+	auto generated = nlohmann::json::object();
+	generated["simple"] = simple;
+	generated["complex"] = complex;
+	std::ofstream result("legacy_to_r16u1_item_mappings.json");
+	result << std::setw(4) << generated << std::endl;
+	result.close();
+	std::cout << "Generated R16U1 item mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
+	generate_item_mapping();
 	generate_legacy_block_map(serverInstance);
 	generate_palette(serverInstance);
 }
