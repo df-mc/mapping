@@ -33,8 +33,6 @@ void generate_legacy_block_map(ServerInstance *serverInstance) {
 				continue;
 			}
 
-			std::cout << "Processing " << name << " " << state << std::endl;
-
 			auto block = blockLegacy->getStateFromLegacyData(state);
 
 			stream->writeUnsignedVarInt(name.length());
@@ -48,6 +46,7 @@ void generate_legacy_block_map(ServerInstance *serverInstance) {
 	output << *stream->buffer;
 	output.close();
 	delete stream;
+	std::cout << "Generated R12 block state mapping table" << std::endl;
 }
 
 void generate_palette(ServerInstance *serverInstance) {
