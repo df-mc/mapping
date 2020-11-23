@@ -42,7 +42,7 @@ void generate_legacy_block_map(ServerInstance *serverInstance) {
 		}
 	}
 
-	std::ofstream output("output");
+	std::ofstream output("r12_to_current_block_map.bin");
 	output << *stream->buffer;
 	output.close();
 	delete stream;
@@ -60,11 +60,11 @@ void generate_palette(ServerInstance *serverInstance) {
 		paletteStream->writeType(state->tag);
 	}
 
-	std::ofstream paletteOutput("palette.nbt");
+	std::ofstream paletteOutput("canonical_block_states.nbt");
 	paletteOutput << *paletteStream->buffer;
 	paletteOutput.close();
 	delete paletteStream;
-	std::cout << "Wrote palette to output file palette.nbt" << std::endl;
+	std::cout << "Generated block palette" << std::endl;
 }
 
 void generate_item_mapping() {
@@ -102,7 +102,7 @@ void generate_item_mapping() {
 	auto generated = nlohmann::json::object();
 	generated["simple"] = simple;
 	generated["complex"] = complex;
-	std::ofstream result("legacy_to_r16u1_item_mappings.json");
+	std::ofstream result("r16_to_current_item_map.json");
 	result << std::setw(4) << generated << std::endl;
 	result.close();
 	std::cout << "Generated R16U1 item mapping table" << std::endl;
