@@ -1,7 +1,14 @@
 #pragma once
 
+#include <memory>
+
 struct Minecraft;
 
 struct ServerInstance {
-	Minecraft *getMinecraft();
+	char filler[120];
+	std::unique_ptr<Minecraft> minecraft;
+
+	Minecraft *getMinecraft() {
+		return minecraft.get();
+	}
 };

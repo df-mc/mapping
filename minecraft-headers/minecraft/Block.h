@@ -6,6 +6,6 @@
 struct Block {
 	const BlockLegacy* getLegacyBlock() const;
 	
-	char filler[24];
+	char filler[96];
 	CompoundTag tag;
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReadOnlyBinaryStream.h"
+#include "serialize.h"
 
 struct BinaryStream : ReadOnlyBinaryStream {
 	std::string unk11;
@@ -15,7 +16,9 @@ struct BinaryStream : ReadOnlyBinaryStream {
 	void writeUnsignedVarInt(unsigned int);
 
 	template<typename T>
-	void writeType(T const &);
+	void writeType(const T &in) {
+		serialize<T>::write(in, *this);
+	}
 };
 
 static_assert(sizeof(BinaryStream) == 104);
