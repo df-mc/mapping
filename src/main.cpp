@@ -7,6 +7,8 @@
 #include <minecraft/Level.h>
 #include <minecraft/Minecraft.h>
 #include <minecraft/ServerInstance.h>
+#include <minecraft/Biome.h>
+#include <minecraft/BiomeRegistry.h>
 
 #include <fstream>
 #include <iomanip>
@@ -108,8 +110,27 @@ void generate_item_mapping() {
 	std::cout << "Generated R16U1 item mapping table" << std::endl;
 }
 
+void generate_biome_mapping(ServerInstance *server) {
+	auto registry = server->getMinecraft()->getLevel()->getBiomeRegistry();
+
+	auto map = nlohmann::json::object();
+	for(auto i = 0; i < 256; ++i){
+		auto biome = registry->lookupById(i);
+		if (biome == nullptr) {
+			continue;
+		}
+		map[biome->name] = i;
+	}
+
+	std::ofstream result("biome_id_map.json");
+	result << std::setw(4) << map << std::endl;
+	result.close();
+	std::cout << "Generated biome ID mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_item_mapping();
 	generate_legacy_block_map(serverInstance);
 	generate_palette(serverInstance);
+	generate_biome_mapping(serverInstance);
 }
