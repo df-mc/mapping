@@ -6,5 +6,5 @@
 struct ItemRegistry{
 	static void* mItemRegistry;
 
-	std::string& getNameFromAlias(HashedString const & name, int metadata);
+	std::pair<HashedString, int>& getNameFromAlias(HashedString const & name, int metadata);
 };

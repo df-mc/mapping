@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <memory>
+#include "serialize.h"
 
 struct ReadOnlyBinaryStream {
 	void *vt;
@@ -8,6 +10,11 @@ struct ReadOnlyBinaryStream {
 	char filler[8]; //unknown field
 	std::string ownedBuffer;
 	std::string* buffer;
+
+	template<typename T>
+	T getType() {
+		return std::move(serialize<T>::read(*this));
+	}
 };
 
 static_assert(offsetof(ReadOnlyBinaryStream, buffer) == 56);
