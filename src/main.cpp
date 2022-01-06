@@ -7,6 +7,7 @@
 #include <minecraft/Level.h>
 #include <minecraft/LevelSoundEventMap.h>
 #include <minecraft/Minecraft.h>
+#include <minecraft/ParticleTypeMap.h>
 #include <minecraft/ServerInstance.h>
 #include <minecraft/Biome.h>
 #include <minecraft/BiomeRegistry.h>
@@ -155,6 +156,20 @@ static void generate_level_sound_mapping() {
 	std::cout << "Generated LevelSoundEvent mapping table" << std::endl;
 }
 
+static void generate_particle_mapping() {
+	auto map = nlohmann::json::object();
+
+	auto list = ParticleTypeMap::getParticleNameTypeList();
+	for(auto pair : list) {
+		map[pair.first] = (unsigned int) pair.second;
+	}
+
+	std::ofstream result("mapping_files/particle_id_map.json");
+	result << std::setw(4) << map << std::endl;
+	result.close();
+	std::cout << "Generated Particle mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
 	generate_item_mapping();
@@ -162,4 +177,5 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_palette(serverInstance);
 	generate_biome_mapping(serverInstance);
 	generate_level_sound_mapping();
+	generate_particle_mapping();
 }
