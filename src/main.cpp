@@ -54,7 +54,7 @@ void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
 	}
 
 	std::ofstream output("mapping_files/r12_to_current_block_map.bin");
-	output << *stream->buffer;
+	output << stream->buffer;
 	output.close();
 	delete stream;
 	std::cout << "Generated R12 block state mapping table" << std::endl;
@@ -72,7 +72,7 @@ void generate_palette(ServerInstance *serverInstance) {
 	}
 
 	std::ofstream paletteOutput("mapping_files/canonical_block_states.nbt");
-	paletteOutput << *paletteStream->buffer;
+	paletteOutput << paletteStream->buffer;
 	paletteOutput.close();
 	delete paletteStream;
 	std::cout << "Generated block palette" << std::endl;
