@@ -18,10 +18,16 @@
 #include <iostream>
 #include <json.hpp>
 
-void generate_legacy_block_map(ServerInstance *serverInstance) {
+
+void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
 	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
 
-	std::ifstream input("required_block_states.json");
+	std::filesystem::path inputPath{"input_files/r12_block_states.json"};
+	if (!std::filesystem::exists(inputPath)) {
+		std::cerr << "Input file " << inputPath << " not found, r12_to_current_block_map won't be generated!" << std::endl;
+		return;
+	}
+	std::ifstream input(inputPath);
 
 	auto stream = new BinaryStream();
 
@@ -76,7 +82,12 @@ void generate_item_mapping() {
 	auto registry = static_cast<ItemRegistry*>(ItemRegistry::mItemRegistry);
 
 	auto list = nlohmann::json::object();
-	std::ifstream listFile("item_id_map.json");
+	std::filesystem::path listFilePath{"input_files/item_id_map.json"};
+	if (!std::filesystem::exists(listFilePath)) {
+		std::cerr << "Input file " << listFilePath << " not found, item mapping table won't be generated!" << std::endl;
+		return;
+	}
+	std::ifstream listFile(listFilePath);
 
 	listFile >> list;
 
@@ -171,7 +182,7 @@ static void generate_particle_mapping() {
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
 	generate_item_mapping();
-	generate_legacy_block_map(serverInstance);
+	generate_r12_to_current_block_map(serverInstance);
 	generate_palette(serverInstance);
 	generate_biome_mapping(serverInstance);
 	generate_level_sound_mapping();
