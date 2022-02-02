@@ -1,3 +1,7 @@
 #pragma once
 
-struct CompoundTag {};
+struct CompoundTag {
+	char filler[56];
+
+	CompoundTag(CompoundTag &&);
+};

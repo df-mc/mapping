@@ -1,5 +1,7 @@
 #pragma once
 
+#include "HashedString.h"
+
 struct Block;
 
 struct NewBlockID {
@@ -9,7 +11,21 @@ struct NewBlockID {
 };
 
 struct BlockLegacy {
+
+	std::string descriptionId;
+	HashedString baseName;
+	std::string namespaceName;
+	HashedString fullName;
+
 	Block *getStateFromLegacyData(unsigned short) const;
 	const NewBlockID getBlockID() const;
-	const std::string& getFullName() const;
+
+	std::string getFullName() const {
+		return fullName.str;
+	}
+
+	float getDestroySpeed() const;
+
+	virtual ~BlockLegacy();
+
 };

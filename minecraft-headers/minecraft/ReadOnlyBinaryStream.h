@@ -5,16 +5,20 @@
 #include "serialize.h"
 
 struct ReadOnlyBinaryStream {
-	void *vt;
 	unsigned long offset;
 	char filler[8]; //unknown field
 	std::string ownedBuffer;
-	std::string* buffer;
+	std::string& buffer;
+
+	virtual ~ReadOnlyBinaryStream();
 
 	template<typename T>
 	T getType() {
 		return std::move(serialize<T>::read(*this));
 	}
+
+	ReadOnlyBinaryStream(std::string const& buffer, bool copy);
+	ReadOnlyBinaryStream(std::string&& buffer);
 };
 
 static_assert(offsetof(ReadOnlyBinaryStream, buffer) == 56);
