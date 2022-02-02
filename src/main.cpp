@@ -129,6 +129,24 @@ void generate_palette(ServerInstance *serverInstance) {
 	std::cout << "Generated block palette" << std::endl;
 }
 
+static void generate_hardness_table(ServerInstance *serverInstance) {
+	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
+	unsigned int numStates = palette->getNumBlockRuntimeIds();
+
+	auto table = nlohmann::json::object();
+
+	BlockTypeRegistry::forEachBlock([&table] (const BlockLegacy & blockLegacy)->bool {
+		auto name = blockLegacy.getFullName();
+		table[name] = blockLegacy.getDestroySpeed();
+		return true;
+	});
+
+	std::ofstream output("mapping_files/hardness_table.json");
+	output << std::setw(4) << table << std::endl;
+	output.close();
+	std::cout << "Generated hardness table" << std::endl;
+}
+
 void generate_item_mapping() {
 	auto registry = static_cast<ItemRegistry*>(ItemRegistry::mItemRegistry);
 
@@ -238,6 +256,7 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_biome_mapping(serverInstance);
 	generate_level_sound_mapping();
 	generate_particle_mapping();
+	generate_hardness_table(serverInstance);
 
 	generate_old_to_current_palette_map(serverInstance);
 }
