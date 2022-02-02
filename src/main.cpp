@@ -2,6 +2,7 @@
 #include <minecraft/Block.h>
 #include <minecraft/BlockLegacy.h>
 #include <minecraft/BlockPalette.h>
+#include <minecraft/BlockTypeRegistry.h>
 #include <minecraft/CompoundTag.h>
 #include <minecraft/ItemRegistry.h>
 #include <minecraft/Level.h>
@@ -58,6 +59,56 @@ void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
 	output.close();
 	delete stream;
 	std::cout << "Generated R12 block state mapping table" << std::endl;
+}
+
+static std::string slurp(std::ifstream& in) {
+	std::ostringstream sstr;
+	sstr << in.rdbuf();
+	return sstr.str();
+}
+
+static void generate_old_to_current_palette_map(ServerInstance *serverInstance) {
+	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
+
+	unsigned int generated = 0;
+
+	std::filesystem::path oldBlockPalettesPath{"input_files/old_block_palettes"};
+	if (!std::filesystem::exists(oldBlockPalettesPath)) {
+		std::cerr << "Input path " << oldBlockPalettesPath << " does not exist, no block maps will be generated!" << std::endl;
+		return;
+	}
+
+	for(auto const& file : std::filesystem::directory_iterator{oldBlockPalettesPath}){
+		std::ifstream infile(file.path());
+		auto versionName = file.path().stem().string();
+		std::ofstream mapping_file("mapping_files/" + versionName + "_to_current_block_map.bin");
+
+		auto input = new ReadOnlyBinaryStream(slurp(infile));
+		auto output = new BinaryStream();
+
+		auto length = input->buffer.length();
+
+		while(input->offset < length){
+			CompoundTag state = input->getType<CompoundTag>();
+
+			const Block* block = palette->getBlock(state);
+
+			//TODO: compare and don't write if the states are the same
+			//right now it's easier to do this outside of the mod
+			output->writeType(state);
+			output->writeType(block->tag);
+		}
+
+		mapping_file << output->buffer;
+		mapping_file.close();
+		delete input;
+		delete output;
+
+		std::cout << "Generated mapping table for " << versionName << std::endl;
+		generated++;
+	}
+
+	std::cout << "Generated " << std::to_string(generated) << " block state mapping tables" << std::endl;
 }
 
 void generate_palette(ServerInstance *serverInstance) {
@@ -187,4 +238,6 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_biome_mapping(serverInstance);
 	generate_level_sound_mapping();
 	generate_particle_mapping();
+
+	generate_old_to_current_palette_map(serverInstance);
 }
