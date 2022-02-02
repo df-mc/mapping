@@ -86,14 +86,12 @@ void generate_item_mapping() {
 	for(auto it = list.begin(); it != list.end(); it++){
 		auto key = it.key();
 		auto firstMapped = registry->getNameFromAlias(key, 0);
-		std::cout << firstMapped.first.str << ":" << std::to_string(firstMapped.second) << std::endl;
 
 		auto metaMap = nlohmann::json::object();
 		for(auto meta = 1; meta < 300; meta++){
 			auto mapped = registry->getNameFromAlias(key, meta);
 			if(key != mapped.first.str && mapped.first.str != firstMapped.first.str){
 				metaMap[std::to_string(meta)] = mapped.first.str;
-				std::cout << mapped.first.str << ":" << std::to_string(firstMapped.second) << std::endl;
 				assert(mapped.second == 0);
 			}
 		}
