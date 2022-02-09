@@ -250,6 +250,19 @@ static void generate_particle_mapping() {
 	std::cout << "Generated Particle mapping table" << std::endl;
 }
 
+static void generate_item_alias_mapping() {
+	auto map = nlohmann::json::object();
+
+	for(auto pair : ItemRegistry::mItemAliasLookupMap) {
+		map[pair.first.str] = pair.second.alias.str;
+	}
+
+	std::ofstream result("mapping_files/item_id_alias_map.json");
+	result << std::setw(4) << map << std::endl;
+	result.close();
+	std::cout << "Generated legacy item alias mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
 	generate_item_mapping();
@@ -261,4 +274,5 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_hardness_table(serverInstance);
 
 	generate_old_to_current_palette_map(serverInstance);
+	generate_item_alias_mapping();
 }
