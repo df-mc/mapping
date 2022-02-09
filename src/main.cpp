@@ -78,10 +78,12 @@ static void generate_old_to_current_palette_map(ServerInstance *serverInstance) 
 		return;
 	}
 
+	std::filesystem::create_directory("mapping_files/old_palette_mappings");
+
 	for(auto const& file : std::filesystem::directory_iterator{oldBlockPalettesPath}){
 		std::ifstream infile(file.path());
 		auto versionName = file.path().stem().string();
-		std::ofstream mapping_file("mapping_files/" + versionName + "_to_current_block_map.bin");
+		std::ofstream mapping_file("mapping_files/old_palette_mappings/" + versionName + "_to_current_block_map.bin");
 
 		auto input = new ReadOnlyBinaryStream(slurp(infile));
 		auto output = new BinaryStream();
