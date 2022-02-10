@@ -1,6 +1,7 @@
 # mapping
-This is a BDS (Bedrock Dedicated Server) mod which allows generating a mapping of legacy blockIDs and their metadata values to modern Minecraft Bedrock blockstates.
-It also allows generating a palette for newer versions of the game which don't send it over the wire.
+This is a BDS (Bedrock Dedicated Server) mod which allows generating mappings and tables of various kinds.
+
+This includes (but is not limited to) the current block palette for a given version, blockstate upgrade tables from previous versions, item upgrade tables, and more besides.
 
 ## Usage
 Set up a BDS using [modloader-helper](https://github.com/Frago9876543210/modloader-helper).
