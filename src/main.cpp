@@ -150,8 +150,6 @@ static void generate_hardness_table(ServerInstance *serverInstance) {
 }
 
 void generate_item_mapping() {
-	auto registry = static_cast<ItemRegistry*>(ItemRegistry::mItemRegistry);
-
 	auto list = nlohmann::json::object();
 	std::filesystem::path listFilePath{"input_files/item_id_map.json"};
 	if (!std::filesystem::exists(listFilePath)) {
@@ -167,11 +165,11 @@ void generate_item_mapping() {
 
 	for(auto it = list.begin(); it != list.end(); it++){
 		auto key = it.key();
-		auto firstMapped = registry->getNameFromAlias(key, 0);
+		auto firstMapped = ItemRegistry::getNameFromAlias(key, 0);
 
 		auto metaMap = nlohmann::json::object();
 		for(auto meta = 1; meta < 300; meta++){
-			auto mapped = registry->getNameFromAlias(key, meta);
+			auto mapped = ItemRegistry::getNameFromAlias(key, meta);
 			if(key != mapped.first.str && mapped.first.str != firstMapped.first.str){
 				metaMap[std::to_string(meta)] = mapped.first.str;
 				assert(mapped.second == 0);
