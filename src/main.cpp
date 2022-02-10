@@ -4,9 +4,11 @@
 #include <minecraft/BlockPalette.h>
 #include <minecraft/BlockTypeRegistry.h>
 #include <minecraft/CompoundTag.h>
+#include <minecraft/Item.h>
 #include <minecraft/ItemRegistry.h>
 #include <minecraft/Level.h>
 #include <minecraft/LevelSoundEventMap.h>
+#include <minecraft/Memory.h>
 #include <minecraft/Minecraft.h>
 #include <minecraft/ParticleTypeMap.h>
 #include <minecraft/ServerInstance.h>
@@ -261,6 +263,33 @@ static void generate_item_alias_mapping() {
 	std::cout << "Generated legacy item alias mapping table" << std::endl;
 }
 
+static void generate_block_id_to_item_id_map(ServerInstance *serverInstance) {
+	auto map = nlohmann::json::object();
+	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
+	unsigned int numStates = palette->getNumBlockRuntimeIds();
+
+	for (unsigned int i = 0; i < numStates; i++) {
+		auto state = palette->getBlock(i);
+		WeakPtr<Item> weakItem = ItemRegistry::getItem(*state);
+		Item *item = weakItem.get();
+		if (item == nullptr) {
+			std::cout << "null item ??? " << state->getLegacyBlock().getFullName() << std::endl;
+			continue;
+		}
+		std::string blockName = state->getLegacyBlock().getFullName();
+		std::string itemName = item->getFullItemName();
+		if (blockName != itemName) {
+			map[blockName] = itemName;
+		}
+	}
+
+	std::ofstream result("mapping_files/block_id_to_item_id_map.json");
+	result << std::setw(4) << map << std::endl;
+	result.close();
+
+	std::cout << "Generated BlockID to ItemID mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
 	generate_item_mapping();
@@ -273,4 +302,6 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 
 	generate_old_to_current_palette_map(serverInstance);
 	generate_item_alias_mapping();
+
+	generate_block_id_to_item_id_map(serverInstance);
 }
