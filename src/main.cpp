@@ -278,9 +278,7 @@ static void generate_block_id_to_item_id_map(ServerInstance *serverInstance) {
 		}
 		std::string blockName = state->getLegacyBlock().getFullName();
 		std::string itemName = item->getFullItemName();
-		if (blockName != itemName) {
-			map[blockName] = itemName;
-		}
+		map[blockName] = itemName;
 	}
 
 	std::ofstream result("mapping_files/block_id_to_item_id_map.json");
