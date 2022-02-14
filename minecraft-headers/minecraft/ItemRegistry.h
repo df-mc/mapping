@@ -2,11 +2,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "HashedString.h"
 #include "Memory.h"
 
 struct ItemRegistry{
-	static void* mItemRegistry;
+	static std::vector<SharedPtr<Item>> mItemRegistry;
 
 	struct ItemAlias{
 		HashedString alias;
