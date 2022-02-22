@@ -22,7 +22,7 @@ Output files are placed in the `mapping_files` directory.
 
 | File name | Description |
 |:----------|:------------|
-| `biome_id_map` | Map of biome string ID -> legacy numeric ID. |
+| `biome_id_map.json` | Map of biome string ID -> legacy numeric ID. |
 | `canonical_block_states.nbt` | Ordered list of blockstates required by the chosen version, in varint NBT format. Read TAG_Compounds until the end of file. |
 | `hardness_table.json` | Map of block string ID -> hardness value. |
 | `level_sound_id_map.json` | Map of string LevelSoundEvent name -> numeric ID. **NOTE: This is not complete since the game itself doesn't map all of them to strings.** |
