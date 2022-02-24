@@ -154,51 +154,6 @@ static void generate_hardness_table(ServerInstance *serverInstance) {
 	std::cout << "Generated hardness table" << std::endl;
 }
 
-void generate_item_mapping() {
-	auto list = nlohmann::json::object();
-	std::filesystem::path listFilePath{"input_files/item_id_map.json"};
-	if (!std::filesystem::exists(listFilePath)) {
-		std::cerr << "Input file " << listFilePath << " not found, item mapping table won't be generated!" << std::endl;
-		return;
-	}
-	std::ifstream listFile(listFilePath);
-
-	listFile >> list;
-
-	auto simple = nlohmann::json::object();
-	auto complex = nlohmann::json::object();
-
-	for(auto it = list.begin(); it != list.end(); it++){
-		auto key = it.key();
-		auto firstMapped = ItemRegistry::getNameFromAlias(key, 0);
-
-		auto metaMap = nlohmann::json::object();
-		for(auto meta = 1; meta < 300; meta++){
-			auto mapped = ItemRegistry::getNameFromAlias(key, meta);
-			if(key != mapped.first.str && mapped.first.str != firstMapped.first.str){
-				metaMap[std::to_string(meta)] = mapped.first.str;
-				assert(mapped.second == 0);
-			}
-		}
-		if(metaMap.size() > 0){
-			if(key != firstMapped.first.str){
-				metaMap["0"] = firstMapped.first.str;
-			}
-			complex[key] = metaMap;
-		}else if(key != firstMapped.first.str){
-			simple[key] = firstMapped.first.str;
-		}
-	}
-
-	auto generated = nlohmann::json::object();
-	generated["simple"] = simple;
-	generated["complex"] = complex;
-	std::ofstream result("mapping_files/r16_to_current_item_map.json");
-	result << std::setw(4) << generated << std::endl;
-	result.close();
-	std::cout << "Generated R16U1 item mapping table" << std::endl;
-}
-
 void generate_biome_mapping(ServerInstance *server) {
 	auto registry = server->getMinecraft()->getLevel()->getBiomeRegistry();
 
@@ -253,16 +208,54 @@ static void generate_particle_mapping() {
 	std::cout << "Generated Particle mapping table" << std::endl;
 }
 
+static std::string add_prefix_if_necessary(std::string input) {
+	if (input.rfind("minecraft:", 0) == 0) {
+		return input;
+	}
+
+	return "minecraft:" + input;
+}
+
 static void generate_item_alias_mapping() {
-	auto map = nlohmann::json::object();
+	auto simple = nlohmann::json::object();
 
 	for(auto pair : ItemRegistry::mItemAliasLookupMap) {
-		map[pair.first.str] = pair.second.alias.str;
+		auto prefixed = add_prefix_if_necessary(pair.second.alias.str);
+		if (prefixed != pair.first.str) {
+			simple[pair.first.str] = prefixed;
+		}
 	}
+
+	auto complex = nlohmann::json::object();
+
+	for(auto pair : ItemRegistry::mComplexAliasLookupMap) {
+		auto metaMap = nlohmann::json::object();
+
+		auto func = pair.second;
+
+		auto zero = func(0);
+		for(short i = 0; i < 32767; i++){
+			auto iStr = func(i);
+			if (iStr != "" && (i == 0 || iStr != zero)) {
+				auto prefixed = add_prefix_if_necessary(iStr);
+				if (prefixed != pair.first.str) {
+					metaMap[std::to_string(i)] = prefixed;
+				}
+			}
+		}
+		complex[pair.first.str] = metaMap;
+	}
+
+	auto map = nlohmann::json::object();
+	map["simple"] = simple;
+	map["complex"] = complex;
 
 	std::ofstream result("mapping_files/item_id_alias_map.json");
 	result << std::setw(4) << map << std::endl;
 	result.close();
+
+	std::filesystem::copy_file("mapping_files/item_id_alias_map.json", "mapping_files/r16_to_current_item_map.json", std::filesystem::copy_options::overwrite_existing); //backwards compatibility
+
 	std::cout << "Generated legacy item alias mapping table" << std::endl;
 }
 
@@ -293,7 +286,6 @@ static void generate_block_id_to_item_id_map(ServerInstance *serverInstance) {
 
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
-	generate_item_mapping();
 	generate_r12_to_current_block_map(serverInstance);
 	generate_palette(serverInstance);
 	generate_biome_mapping(serverInstance);
