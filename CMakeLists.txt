@@ -4,6 +4,7 @@ project(mapping)
 set(CMAKE_PREFIX_PATH ../../sdk)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(include minecraft-headers)
 
