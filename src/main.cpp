@@ -12,6 +12,7 @@
 #include <minecraft/Minecraft.h>
 #include <minecraft/ParticleTypeMap.h>
 #include <minecraft/ServerInstance.h>
+#include <minecraft/VanillaBlockConversion.h>
 #include <minecraft/Biome.h>
 #include <minecraft/BiomeRegistry.h>
 
@@ -39,7 +40,12 @@ void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
 
 	for (auto &object : json["minecraft"].items()) {
 		const auto &name = "minecraft:" + object.key();
-		auto blockLegacy = palette->getBlockLegacy(name);
+		auto blockLegacy = BlockTypeRegistry::lookupByName(name, false).get();
+		if (blockLegacy == nullptr){
+			std::cerr << "No matching blockstate found for " << name << " (THIS IS A BUG)" << std::endl;
+			continue;
+		}
+
 		for (auto &it : object.value()) {
 			auto state = it.get<unsigned short>();
 
@@ -48,6 +54,10 @@ void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
 			}
 
 			auto block = blockLegacy->getStateFromLegacyData(state);
+			if (block == nullptr) {
+				std::cerr << "No mapped state for " << name << ":" << std::to_string(state) << " (THIS IS A BUG)" << std::endl;
+				continue;
+			}
 
 			stream->writeUnsignedVarInt(name.length());
 			stream->write(name.c_str(), name.length());
@@ -233,9 +243,9 @@ static void generate_item_alias_mapping() {
 
 		auto func = pair.second;
 
-		auto zero = func(0);
+		auto zero = func(0).str;
 		for(short i = 0; i < 32767; i++){
-			auto iStr = func(i);
+			auto iStr = func(i).str;
 			if (iStr != "" && (i == 0 || iStr != zero)) {
 				auto prefixed = add_prefix_if_necessary(iStr);
 				if (prefixed != pair.first.str) {

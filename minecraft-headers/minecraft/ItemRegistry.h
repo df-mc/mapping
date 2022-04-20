@@ -15,7 +15,7 @@ struct ItemRegistry{
 	};
 
 	static std::unordered_map<HashedString, ItemAlias> mItemAliasLookupMap;
-	static std::unordered_map<HashedString, std::function<std::string(short)>> mComplexAliasLookupMap;
+	static std::unordered_map<HashedString, std::function<HashedString(short)>> mComplexAliasLookupMap;
 
 	static std::pair<HashedString, int> getNameFromAlias(HashedString const & name, int metadata);
 
