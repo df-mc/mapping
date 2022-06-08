@@ -294,6 +294,33 @@ static void generate_block_id_to_item_id_map(ServerInstance *serverInstance) {
 	std::cout << "Generated BlockID to ItemID mapping table" << std::endl;
 }
 
+static void generate_command_arg_types_table(ServerInstance *serverInstance) {
+	auto map = nlohmann::json::object();
+
+	auto registry = serverInstance->getMinecraft()->getCommands().getRegistry();
+
+	for (int i = 0; i < 1000; i++) { //TODO: we can probably use CommandRegistry::forEachSymbol() for this instead
+		int symbol = i | 0x100000;
+
+		if (registry.isValid(symbol)) {
+			auto name = registry.symbolToString(symbol);
+			auto description = registry.describe(symbol);
+
+			auto object = nlohmann::json::object();
+			object["id"] = i;
+			object["description"] = description;
+
+			map[name] = object;
+		}
+	}
+
+	std::ofstream result("mapping_files/command_arg_types.json");
+	result << std::setw(4) << map << std::endl;
+	result.close();
+
+	std::cout << "Generated command parameter ID mapping table" << std::endl;
+}
+
 extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	std::filesystem::create_directory("mapping_files");
 	generate_r12_to_current_block_map(serverInstance);
@@ -307,4 +334,5 @@ extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
 	generate_item_alias_mapping();
 
 	generate_block_id_to_item_id_map(serverInstance);
+	generate_command_arg_types_table(serverInstance);
 }
