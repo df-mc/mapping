@@ -10,5 +10,5 @@ include_directories(include minecraft-headers)
 
 find_package(ModLoader REQUIRED)
 
-add_library(mapping SHARED src/main.cpp)
+add_library(mapping SHARED src/main.cpp minecraft-headers/minecraft/mce.h minecraft-headers/minecraft/RecipeIngredient.h)
 target_link_libraries(mapping PUBLIC ModLoader)

@@ -2,11 +2,12 @@
 
 #include <string>
 
-struct HashedString{
-	unsigned long long hash;
-	std::string str;
-	struct HashedString* wtf;
+struct HashedString {
+    unsigned long long hash;
+    std::string str;
+    struct HashedString *wtf;
 
-	HashedString(std::string const & input);
-	HashedString(char const * input);
+    HashedString(std::string const &input);
+
+    HashedString(char const *input);
 };

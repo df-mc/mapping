@@ -6,10 +6,10 @@
 
 template<typename T>
 struct SharedCounter {
-    /* volatile ? */ T* value;
+    /* volatile ? */ T *value;
     std::atomic<int> shared, weak;
 
-    SharedCounter(T* value) : value(value) {}
+    SharedCounter(T *value) : value(value) {}
 
     void addSharedRef() { ++shared; }
 
@@ -18,7 +18,7 @@ struct SharedCounter {
     bool releaseSharedRef() {
         if (--shared == 0) {
             if (value != nullptr) {
-                T* oldValue = value;
+                T *oldValue = value;
                 value = nullptr;
                 delete oldValue;
             }
@@ -34,21 +34,21 @@ struct SharedCounter {
 
 template<typename T>
 struct WeakPtr {
-    SharedCounter<T>* counter = nullptr;
+    SharedCounter<T> *counter = nullptr;
 
-    WeakPtr(T* val = nullptr) {
+    WeakPtr(T *val = nullptr) {
         if (val) {
             counter = new SharedCounter<T>(val);
             counter->addWeakRef();
         }
     }
 
-    WeakPtr(WeakPtr&& ptr) {
+    WeakPtr(WeakPtr &&ptr) {
         counter = std::move(ptr.counter);
         ptr.counter = nullptr;
     }
 
-    WeakPtr& operator=(WeakPtr const& ptr) {
+    WeakPtr &operator=(WeakPtr const &ptr) {
         reset();
         this->counter = ptr.counter;
         if (counter)
@@ -56,7 +56,7 @@ struct WeakPtr {
         return *this;
     }
 
-    WeakPtr& operator=(WeakPtr&& ptr) {
+    WeakPtr &operator=(WeakPtr &&ptr) {
         counter = std::move(ptr.counter);
         ptr.counter = nullptr;
         return *this;
@@ -72,26 +72,26 @@ struct WeakPtr {
         reset();
     };
 
-    template <typename... Args>
-    static WeakPtr<T> make(Args&&... args) {
+    template<typename... Args>
+    static WeakPtr<T> make(Args &&... args) {
         return WeakPtr<T>(new T(std::forward(args...)));
     }
 
-    T& operator*() {
+    T &operator*() {
         return *counter->value;
     }
 
-    T* operator->() {
+    T *operator->() {
         return counter->value;
     }
 
-    T* get() {
+    T *get() {
         if (!counter)
             return nullptr;
         return counter->value;
     }
 
-    T const* get() const {
+    T const *get() const {
         if (!counter)
             return nullptr;
         return counter->value;
@@ -100,16 +100,16 @@ struct WeakPtr {
 
 template<typename T>
 struct SharedPtr {
-    SharedCounter<T>* counter = nullptr;
+    SharedCounter<T> *counter = nullptr;
 
-    SharedPtr(T* val = nullptr) {
+    SharedPtr(T *val = nullptr) {
         if (val) {
             counter = new SharedCounter<T>(val);
             counter->addSharedRef();
         }
     }
 
-    SharedPtr(SharedPtr const& a) : counter(a.counter) {
+    SharedPtr(SharedPtr const &a) : counter(a.counter) {
         if (counter)
             counter->addSharedRef();
     }
@@ -120,7 +120,7 @@ struct SharedPtr {
         counter = nullptr;
     }
 
-    SharedPtr& operator=(SharedPtr const& ptr) {
+    SharedPtr &operator=(SharedPtr const &ptr) {
         reset();
         this->counter = ptr.counter;
         if (counter)
@@ -132,20 +132,20 @@ struct SharedPtr {
         reset();
     }
 
-    template <typename... Args>
-    static SharedPtr<T> make(Args&&... args) {
+    template<typename... Args>
+    static SharedPtr<T> make(Args &&... args) {
         return SharedPtr<T>(new T(std::forward(args...)));
     }
 
-    T& operator*() {
+    T &operator*() {
         return *counter->value;
     }
 
-    T* operator->() {
+    T *operator->() {
         return counter->value;
     }
 
-    T* get() {
+    T *get() {
         if (!counter)
             return nullptr;
         return counter->value;

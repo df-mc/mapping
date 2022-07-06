@@ -2,8 +2,8 @@
 
 enum class LevelSoundEvent;
 
-struct LevelSoundEventMap{
-	static std::string& getName(LevelSoundEvent type);
+struct LevelSoundEventMap {
+    static std::string &getName(LevelSoundEvent type);
 
-	static LevelSoundEvent getId(std::string const& string);
+    static LevelSoundEvent getId(std::string const &string);
 };

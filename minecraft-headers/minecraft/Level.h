@@ -1,9 +1,13 @@
 #pragma once
 
+struct Recipes;
 struct BlockPalette;
 struct BiomeRegistry;
 
 struct Level {
-	BlockPalette *getBlockPalette() const;
-	BiomeRegistry *getBiomeRegistry() const;
+    Recipes &getRecipes() const;
+
+    BlockPalette *getBlockPalette() const;
+
+    BiomeRegistry *getBiomeRegistry() const;
 };

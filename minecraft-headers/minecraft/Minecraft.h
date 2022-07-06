@@ -6,7 +6,7 @@
 struct Level;
 
 struct Minecraft {
-	Level *getLevel() const;
+    Level *getLevel() const;
 
-	MinecraftCommands& getCommands();
+    MinecraftCommands &getCommands();
 };

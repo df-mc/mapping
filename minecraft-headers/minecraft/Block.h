@@ -2,21 +2,24 @@
 
 #include "BlockLegacy.h"
 #include "CompoundTag.h"
+#include "HashedString.h"
 
 typedef CompoundTag BlockSerializationId;
 
 struct Block {
-	const BlockLegacy & getLegacyBlock() const {
-		return *blockLegacy;
-	}
+    int getBurnOdds() const;
 
-	float getDestroySpeed() const;
+    float getDestroySpeed() const;
 
-	virtual ~Block() {}
+    int getFlameOdds() const;
 
-	unsigned short data;
-	BlockLegacy* blockLegacy;
+    float getFriction() const;
 
-	char filler2[80];
-	BlockSerializationId tag;
+    virtual ~Block() {}
+
+    unsigned short data;
+    BlockLegacy *blockLegacy;
+
+    char filler2[80];
+    BlockSerializationId tag;
 };

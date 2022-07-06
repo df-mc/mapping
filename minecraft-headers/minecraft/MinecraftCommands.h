@@ -2,6 +2,6 @@
 
 #include "CommandRegistry.h"
 
-struct MinecraftCommands{
-	CommandRegistry& getRegistry();
+struct MinecraftCommands {
+    CommandRegistry &getRegistry();
 };

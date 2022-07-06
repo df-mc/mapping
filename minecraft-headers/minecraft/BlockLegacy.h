@@ -1,31 +1,30 @@
 #pragma once
 
 #include "HashedString.h"
+#include "mce.h"
 
 struct Block;
 
 struct NewBlockID {
-	NewBlockID(const NewBlockID&);
+    NewBlockID(const NewBlockID &);
 
-	unsigned short value;
+    unsigned short value;
 };
 
 struct BlockLegacy {
 
-	std::string descriptionId;
-	HashedString baseName;
-	std::string namespaceName;
-	HashedString fullName;
+    std::string descriptionId;
+    HashedString baseName;
+    std::string namespaceName;
+    HashedString fullName;
 
-	Block *getStateFromLegacyData(unsigned short) const;
-	const NewBlockID getBlockID() const;
+    std::string getFullName() const {
+        return fullName.str;
+    }
 
-	std::string getFullName() const {
-		return fullName.str;
-	}
+    Block *getStateFromLegacyData(unsigned short) const;
 
-	float getDestroySpeed() const;
+    const NewBlockID getBlockID() const;
 
-	virtual ~BlockLegacy();
-
+    virtual ~BlockLegacy();
 };

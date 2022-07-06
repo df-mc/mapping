@@ -4,21 +4,21 @@
 #include "serialize.h"
 
 struct BinaryStream : ReadOnlyBinaryStream {
-	std::string unk11;
-	std::string* unk2;
+    std::string unk11;
+    std::string *unk2;
 
-	BinaryStream();
+    BinaryStream();
 
-	void write(void const *, unsigned long);
+    void write(void const *, unsigned long);
 
-	void writeUnsignedShort(unsigned short);
+    void writeUnsignedShort(unsigned short);
 
-	void writeUnsignedVarInt(unsigned int);
+    void writeUnsignedVarInt(unsigned int);
 
-	template<typename T>
-	void writeType(const T &in) {
-		serialize<T>::write(in, *this);
-	}
+    template<typename T>
+    void writeType(const T &in) {
+        serialize<T>::write(in, *this);
+    }
 };
 
 static_assert(sizeof(BinaryStream) == 104);

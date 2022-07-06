@@ -4,7 +4,7 @@
 #include "Biome.h"
 
 struct BiomeRegistry {
-	Biome* lookupById(int) const;
+    Biome *lookupById(int) const;
 
-	void forEachBiome(std::function<void(Biome &)>) const;
+    void forEachBiome(std::function<void(Biome &)>) const;
 };

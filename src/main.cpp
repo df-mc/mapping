@@ -1,338 +1,317 @@
+/*
+ * Heavily based around https://github.com/pmmp/mapping by dktapps and Frago9876543210.
+ * Improved upon to generate more relevant data for Dragonfly.
+ */
+
 #include <minecraft/BinaryStream.h>
-#include <minecraft/Block.h>
-#include <minecraft/BlockLegacy.h>
 #include <minecraft/BlockPalette.h>
-#include <minecraft/BlockTypeRegistry.h>
 #include <minecraft/CompoundTag.h>
 #include <minecraft/Item.h>
 #include <minecraft/ItemRegistry.h>
 #include <minecraft/Level.h>
-#include <minecraft/LevelSoundEventMap.h>
-#include <minecraft/Memory.h>
 #include <minecraft/Minecraft.h>
-#include <minecraft/ParticleTypeMap.h>
 #include <minecraft/ServerInstance.h>
-#include <minecraft/VanillaBlockConversion.h>
 #include <minecraft/Biome.h>
 #include <minecraft/BiomeRegistry.h>
+#include <minecraft/CreativeItemRegistry.h>
 
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <json.hpp>
+#include "minecraft/Recipes.h"
+#include "minecraft/ListTag.h"
+#include "minecraft/I18n.h"
+#include "minecraft/ItemStack.h"
 
+/**
+ * Generates the vanilla block states and saves them in network little endian NBT.
+ * @param server
+ */
+void generate_block_states(ServerInstance *server) {
+    auto palette = server->getMinecraft()->getLevel()->getBlockPalette();
+    auto stream = new BinaryStream();
+    for (unsigned int i = 0; i < palette->getNumBlockRuntimeIds(); i++) {
+        auto state = palette->getBlock(i);
+        stream->writeType(state->tag);
+    }
 
-void generate_r12_to_current_block_map(ServerInstance *serverInstance) {
-	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
+    std::ofstream output("mapping_files/block_states.nbt");
+    output << stream->buffer;
+    output.close();
 
-	std::filesystem::path inputPath{"input_files/r12_block_states.json"};
-	if (!std::filesystem::exists(inputPath)) {
-		std::cerr << "Input file " << inputPath << " not found, r12_to_current_block_map won't be generated!" << std::endl;
-		return;
-	}
-	std::ifstream input(inputPath);
+    delete stream;
 
-	auto stream = new BinaryStream();
-
-	auto json = nlohmann::json::object();
-	input >> json;
-
-	for (auto &object : json["minecraft"].items()) {
-		const auto &name = "minecraft:" + object.key();
-		auto blockLegacy = BlockTypeRegistry::lookupByName(name, false).get();
-		if (blockLegacy == nullptr){
-			std::cerr << "No matching blockstate found for " << name << " (THIS IS A BUG)" << std::endl;
-			continue;
-		}
-
-		for (auto &it : object.value()) {
-			auto state = it.get<unsigned short>();
-
-			if (name == "minecraft:cocoa" && state >= 12) {
-				continue;
-			}
-
-			auto block = blockLegacy->getStateFromLegacyData(state);
-			if (block == nullptr) {
-				std::cerr << "No mapped state for " << name << ":" << std::to_string(state) << " (THIS IS A BUG)" << std::endl;
-				continue;
-			}
-
-			stream->writeUnsignedVarInt(name.length());
-			stream->write(name.c_str(), name.length());
-			stream->writeUnsignedShort(state);
-			stream->writeType(block->tag);
-		}
-	}
-
-	std::ofstream output("mapping_files/r12_to_current_block_map.bin");
-	output << stream->buffer;
-	output.close();
-	delete stream;
-	std::cout << "Generated R12 block state mapping table" << std::endl;
+    std::cout << "Generated block states!" << std::endl;
 }
 
-static std::string slurp(std::ifstream& in) {
-	std::ostringstream sstr;
-	sstr << in.rdbuf();
-	return sstr.str();
+/**
+ * Generates the vanilla item runtime IDs and saves them in network little endian NBT.
+ */
+static void generate_item_runtime_ids() {
+    CompoundTag out;
+    for (auto item: ItemRegistry::mItemRegistry) {
+        out.putInt(item->getFullItemName(), item->getId());
+    }
+
+    auto stream = new BinaryStream();
+    stream->writeType(out);
+
+    std::ofstream output("mapping_files/item_runtime_ids.nbt");
+    output << stream->buffer;
+    output.close();
+
+    delete stream;
+    std::cout << "Generated item runtime IDs!" << std::endl;
 }
 
-static void generate_old_to_current_palette_map(ServerInstance *serverInstance) {
-	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
+/**
+ * Generates the vanilla creative items and saves them in network little endian NBT.
+ */
+void generate_creative_items() {
+    auto stream = new BinaryStream();
+    CreativeItemRegistry::forEachCreativeItemInstance([&stream](ItemInstance &item) -> bool {
+        CompoundTag tag;
+        tag.putString("name", item.getItem()->getFullItemName());
+        tag.putShort("meta", item.getAuxValue());
+        if (item.hasUserData()) {
+            tag.putCompound("nbt", item.getUserData()->clone());
+        }
+        if (item.isBlock()) {
+            tag.putCompound("block", item.getBlock()->tag.clone());
+        }
+        stream->writeType(tag);
+        return true;
+    });
 
-	unsigned int generated = 0;
+    std::ofstream output("mapping_files/creative_items.nbt");
+    output << stream->buffer;
+    output.close();
 
-	std::filesystem::path oldBlockPalettesPath{"input_files/old_block_palettes"};
-	if (!std::filesystem::exists(oldBlockPalettesPath)) {
-		std::cerr << "Input path " << oldBlockPalettesPath << " does not exist, no block maps will be generated!" << std::endl;
-		return;
-	}
+    delete stream;
 
-	std::filesystem::create_directory("mapping_files/old_palette_mappings");
-
-	for(auto const& file : std::filesystem::directory_iterator{oldBlockPalettesPath}){
-		if (file.path().extension().string() != ".nbt") {
-			continue;
-		}
-		std::ifstream infile(file.path());
-		auto versionName = file.path().stem().string();
-		std::ofstream mapping_file("mapping_files/old_palette_mappings/" + versionName + "_to_current_block_map.bin");
-
-		auto input = new ReadOnlyBinaryStream(slurp(infile));
-		auto output = new BinaryStream();
-
-		auto length = input->buffer.length();
-
-		while(input->offset < length){
-			CompoundTag state = input->getType<CompoundTag>();
-
-			const Block* block = palette->getBlock(state);
-
-			//TODO: compare and don't write if the states are the same
-			//right now it's easier to do this outside of the mod
-			output->writeType(state);
-			output->writeType(block->tag);
-		}
-
-		mapping_file << output->buffer;
-		mapping_file.close();
-		delete input;
-		delete output;
-
-		std::cout << "Generated mapping table for " << versionName << std::endl;
-		generated++;
-	}
-
-	std::cout << "Generated " << std::to_string(generated) << " block state mapping tables" << std::endl;
+    std::cout << "Generated creative items!" << std::endl;
 }
 
-void generate_palette(ServerInstance *serverInstance) {
-	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
-	unsigned int numStates = palette->getNumBlockRuntimeIds();
-	std::cout << "Number of blockstates: " << numStates << std::endl;
+/**
+ * Generates name+meta to display name mappings for each language supported by Minecraft.
+ */
+void generate_item_names() {
+    for (const auto &localization: I18n::mLanguages) {
+        auto code = localization->getFullLanguageCode();
+        I18n::chooseLanguage(code);
 
-	auto paletteStream = new BinaryStream();
-	for (unsigned int i = 0; i < numStates; i++) {
-		auto state = palette->getBlock(i);
-		paletteStream->writeType(state->tag);
-	}
+        auto entries = nlohmann::json::array();
+        for (auto item: ItemRegistry::mItemRegistry) {
+            auto id = item->getFullItemName();
+            std::string lastName;
+            for (int aux = 0; aux < 255; aux++) {
+                if (!item->isValidAuxValue(aux)) {
+                    break;
+                }
 
-	std::ofstream paletteOutput("mapping_files/canonical_block_states.nbt");
-	paletteOutput << paletteStream->buffer;
-	paletteOutput.close();
-	delete paletteStream;
-	std::cout << "Generated block palette" << std::endl;
+                // Aux validation checks because Mojang can't do them properly!
+                if (id == "minecraft:arrow" && aux == 44) {
+                    break;
+                }
+                if (id.find("potion") != std::string::npos && aux == 43) {
+                    break;
+                }
+
+                auto stack = new ItemStack(*item, 1, aux);
+                auto name = item->buildDescriptionName(*stack);
+                if (name.length() == 0 || name.find('.') != std::string::npos) {
+                    continue;
+                }
+                if (id.find("potion") == std::string::npos && id != "minecraft:arrow" && lastName == name) {
+                    continue;
+                }
+
+                auto object = nlohmann::json::object();
+                object["id"] = id;
+                object["name"] = name;
+                if (aux > 0) {
+                    object["meta"] = aux;
+                }
+                entries.push_back(object);
+
+                lastName = name;
+            }
+        }
+
+        std::ofstream output("mapping_files/lang/" + code + ".json");
+        output << std::setw(4) << entries << std::endl;
+        output.close();
+
+        std::cout << "Generated item names for " << code << "!" << std::endl;
+    }
 }
 
-static void generate_hardness_table(ServerInstance *serverInstance) {
-	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
-	unsigned int numStates = palette->getNumBlockRuntimeIds();
+/**
+ * Generates all shaped and shapeless recipes and saves them in network little endian NBT.
+ * @param server
+ */
+void generate_recipes(ServerInstance *server) {
+    ListTag shapelessRecipes;
+    ListTag shapedRecipes;
 
-	auto table = nlohmann::json::object();
+    auto recipes = server->getMinecraft()->getLevel()->getRecipes().getRecipesAllTags();
+    for (auto const &[block, blockRecipes]: recipes) {
+        for (auto const &[id, recipe]: blockRecipes) {
+            if (block.str != "crafting_table") {
+                // Dragonfly only supports crafting table recipes at the moment anyway.
+                continue;
+            }
 
-	BlockTypeRegistry::forEachBlock([&table] (const BlockLegacy & blockLegacy)->bool {
-		auto name = blockLegacy.getFullName();
-		table[name] = blockLegacy.getDestroySpeed();
-		return true;
-	});
+            ListTag inputItems;
+            for (const auto &item: recipe->getIngredients()) {
+                CompoundTag inputItemTag;
+                inputItemTag.putString("name", item.getFullName());
+                inputItemTag.putInt("meta", item.getAuxValue());
+                inputItemTag.putInt("count", item.getStackSize());
+                inputItems.add(inputItemTag.clone());
+            }
 
-	std::ofstream output("mapping_files/hardness_table.json");
-	output << std::setw(4) << table << std::endl;
-	output.close();
-	std::cout << "Generated hardness table" << std::endl;
+            ListTag outputItems;
+            for (const auto &item: recipe->getResultItem()) {
+                CompoundTag outputItemTag;
+                outputItemTag.putString("name", item.getItem()->getFullItemName());
+                outputItemTag.putInt("meta", item.getAuxValue());
+                outputItemTag.putInt("count", item.mCount);
+                if (item.isBlock()) {
+                    outputItemTag.putCompound("block", item.getBlock()->tag.clone());
+                }
+                if (item.hasUserData()) {
+                    outputItemTag.putCompound("nbt", item.getUserData()->clone());
+                }
+                outputItems.add(outputItemTag.clone());
+            }
+
+            CompoundTag recipeTag;
+            recipeTag.put("input", inputItems.copyList());
+            recipeTag.put("output", outputItems.copyList());
+
+            recipeTag.putString("block", block.str);
+            if (!recipe->isShapeless()) {
+                recipeTag.putInt("width", recipe->getWidth());
+                recipeTag.putInt("height", recipe->getHeight());
+            }
+            recipeTag.putInt("priority", recipe->getPriority());
+            if (recipe->isShapeless()) {
+                shapelessRecipes.add(recipeTag.clone());
+                continue;
+            }
+            shapedRecipes.add(recipeTag.clone());
+        }
+    }
+
+    CompoundTag craftingData;
+    craftingData.put("shaped", shapedRecipes.copyList());
+    craftingData.put("shapeless", shapelessRecipes.copyList());
+
+    auto stream = new BinaryStream();
+    stream->writeType(craftingData);
+
+    std::ofstream output("mapping_files/crafting_data.nbt");
+    output << stream->buffer;
+    output.close();
+
+    delete stream;
+
+    std::cout << "Generated recipes!" << std::endl;
 }
 
-void generate_biome_mapping(ServerInstance *server) {
-	auto registry = server->getMinecraft()->getLevel()->getBiomeRegistry();
+/**
+ * Generates block attributes for each block type, containing information for friction values, flame and burn odds,
+ * destruction speeds, and more. This isn't used in Dragonfly, but is helpful for implementing blocks.
+ * @param server
+ */
+void generate_block_attributes(ServerInstance *server) {
+    auto entries = nlohmann::json::array();
+    auto palette = server->getMinecraft()->getLevel()->getBlockPalette();
+    for (unsigned int i = 0; i < palette->getNumBlockRuntimeIds(); i++) {
+        auto state = palette->getBlock(i);
+        auto object = nlohmann::json::object();
+        auto properties = nlohmann::json::object();
+        // TODO: Properties?
+        object["name"] = state->blockLegacy->getFullName();
+        object["properties"] = properties;
+        object["destroy_speed"] = state->getDestroySpeed();
+        object["flame_odds"] = state->getFlameOdds();
+        object["burn_odds"] = state->getBurnOdds();
+        object["friction"] = state->getFriction();
+        entries.push_back(object);
+    }
 
-	auto map = nlohmann::json::object();
+    std::ofstream output("mapping_files/extra/block_attributes.json");
+    output << std::setw(4) << entries << std::endl;
+    output.close();
 
-	registry->forEachBiome([&map] (Biome &biome) {
-		auto id = biome.biomeId;
-		map[biome.name] = id;
-	});
-
-	std::ofstream result("mapping_files/biome_id_map.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-	std::cout << "Generated biome ID mapping table" << std::endl;
+    std::cout << "Generated block attributes!" << std::endl;
 }
 
-static void generate_level_sound_mapping() {
-	auto map = nlohmann::json::object();
+/**
+ * Generates biome mappings from string ID to biome information, including biome temperature, rainfall, and legacy IDs.
+ * This isn't used in Dragonfly, but is helpful for implementing newer biomes.
+ * @param server
+ */
+void generate_biomes(ServerInstance *server) {
+    auto map = nlohmann::json::object();
+    server->getMinecraft()->getLevel()->getBiomeRegistry()->forEachBiome([&map](Biome &biome) {
+        auto object = nlohmann::json::object();
+        object["id"] = biome.biomeId;
+        object["temperature"] = biome.getDefaultBiomeTemperature();
+        object["rainfall"] = biome.getDownfall();
 
-	bool found_113 = false;
-	for(int i = 0; i < 1000; i++) {
-		auto name = LevelSoundEventMap::getName((LevelSoundEvent) i);
-		if (name != "undefined") {
-			map[name] = i;
-			if (i == 113) {
-				found_113 = true;
-				std::cout << "WARNING: STOP_RECORD(113) has changed, and it won't appear in the output!" << std::endl;
-			}
-		}
-	}
-	if (!found_113) {
-		map["stop_record"] = 113;
-	}
+        map[biome.name] = object;
+    });
 
-	std::ofstream result("mapping_files/level_sound_id_map.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-	std::cout << "Generated LevelSoundEvent mapping table" << std::endl;
+    std::ofstream result("mapping_files/extra/biomes.json");
+    result << std::setw(4) << map << std::endl;
+    result.close();
+
+    std::cout << "Generated biomes!" << std::endl;
 }
 
-static void generate_particle_mapping() {
-	auto map = nlohmann::json::object();
+/**
+ * Generates command parameter IDs, used to describe a parameter's type in commands. This is used for Gophertunnel
+ * command parameter updates.
+ * @param server
+ */
+void generate_command_parameter_ids(ServerInstance *server) {
+    auto map = nlohmann::json::object();
+    auto registry = server->getMinecraft()->getCommands().getRegistry();
 
-	auto list = ParticleTypeMap::getParticleNameTypeList();
-	for(auto pair : list) {
-		map[pair.first] = (unsigned int) pair.second;
-	}
+    for (int id = 0; id < 1000; id++) { //TODO: we can probably use CommandRegistry::forEachSymbol() for this instead
+        int symbol = id | 0x100000;
+        if (registry.isValid(symbol)) {
+            auto name = registry.describe(symbol);
+            if (name != "undefined") {
+                map[name] = id;
+            }
+        }
+    }
 
-	std::ofstream result("mapping_files/particle_id_map.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-	std::cout << "Generated Particle mapping table" << std::endl;
+    std::ofstream result("mapping_files/command_parameter_ids.json");
+    result << std::setw(4) << map << std::endl;
+    result.close();
+
+    std::cout << "Generated command parameter IDs!" << std::endl;
 }
 
-static std::string add_prefix_if_necessary(std::string input) {
-	if (input.rfind("minecraft:", 0) == 0) {
-		return input;
-	}
-
-	return "minecraft:" + input;
-}
-
-static void generate_item_alias_mapping() {
-	auto simple = nlohmann::json::object();
-
-	for(auto pair : ItemRegistry::mItemAliasLookupMap) {
-		auto prefixed = add_prefix_if_necessary(pair.second.alias.str);
-		if (prefixed != pair.first.str) {
-			simple[pair.first.str] = prefixed;
-		}
-	}
-
-	auto complex = nlohmann::json::object();
-
-	for(auto pair : ItemRegistry::mComplexAliasLookupMap) {
-		auto metaMap = nlohmann::json::object();
-
-		auto func = pair.second;
-
-		auto zero = func(0).str;
-		for(short i = 0; i < 32767; i++){
-			auto iStr = func(i).str;
-			if (iStr != "" && (i == 0 || iStr != zero)) {
-				auto prefixed = add_prefix_if_necessary(iStr);
-				if (prefixed != pair.first.str) {
-					metaMap[std::to_string(i)] = prefixed;
-				}
-			}
-		}
-		complex[pair.first.str] = metaMap;
-	}
-
-	auto map = nlohmann::json::object();
-	map["simple"] = simple;
-	map["complex"] = complex;
-
-	std::ofstream result("mapping_files/item_id_alias_map.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-
-	std::filesystem::copy_file("mapping_files/item_id_alias_map.json", "mapping_files/r16_to_current_item_map.json", std::filesystem::copy_options::overwrite_existing); //backwards compatibility
-
-	std::cout << "Generated legacy item alias mapping table" << std::endl;
-}
-
-static void generate_block_id_to_item_id_map(ServerInstance *serverInstance) {
-	auto map = nlohmann::json::object();
-	auto palette = serverInstance->getMinecraft()->getLevel()->getBlockPalette();
-	unsigned int numStates = palette->getNumBlockRuntimeIds();
-
-	for (unsigned int i = 0; i < numStates; i++) {
-		auto state = palette->getBlock(i);
-		WeakPtr<Item> weakItem = ItemRegistry::getItem(*state);
-		Item *item = weakItem.get();
-		if (item == nullptr) {
-			std::cout << "null item ??? " << state->getLegacyBlock().getFullName() << std::endl;
-			continue;
-		}
-		std::string blockName = state->getLegacyBlock().getFullName();
-		std::string itemName = item->getFullItemName();
-		map[blockName] = itemName;
-	}
-
-	std::ofstream result("mapping_files/block_id_to_item_id_map.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-
-	std::cout << "Generated BlockID to ItemID mapping table" << std::endl;
-}
-
-static void generate_command_arg_types_table(ServerInstance *serverInstance) {
-	auto map = nlohmann::json::object();
-
-	auto registry = serverInstance->getMinecraft()->getCommands().getRegistry();
-
-	for (int i = 0; i < 1000; i++) { //TODO: we can probably use CommandRegistry::forEachSymbol() for this instead
-		int symbol = i | 0x100000;
-
-		if (registry.isValid(symbol)) {
-			auto name = registry.symbolToString(symbol);
-			auto description = registry.describe(symbol);
-
-			auto object = nlohmann::json::object();
-			object["id"] = i;
-			object["description"] = description;
-
-			map[name] = object;
-		}
-	}
-
-	std::ofstream result("mapping_files/command_arg_types.json");
-	result << std::setw(4) << map << std::endl;
-	result.close();
-
-	std::cout << "Generated command parameter ID mapping table" << std::endl;
-}
-
-extern "C" void modloader_on_server_start(ServerInstance *serverInstance) {
-	std::filesystem::create_directory("mapping_files");
-	generate_r12_to_current_block_map(serverInstance);
-	generate_palette(serverInstance);
-	generate_biome_mapping(serverInstance);
-	generate_level_sound_mapping();
-	generate_particle_mapping();
-	generate_hardness_table(serverInstance);
-
-	generate_old_to_current_palette_map(serverInstance);
-	generate_item_alias_mapping();
-
-	generate_block_id_to_item_id_map(serverInstance);
-	generate_command_arg_types_table(serverInstance);
+/**
+ * Generates relevant data from BDS to mapping files for use in Dragonfly.
+ * @param serverInstance
+ */
+extern "C" void modloader_on_server_start(ServerInstance *server) {
+    std::filesystem::create_directory("mapping_files");
+    generate_block_states(server);
+    generate_item_runtime_ids();
+    generate_creative_items();
+    generate_item_names();
+    // TODO: Fix Recipe header (breaks on virtual functions?)
+    generate_block_attributes(server);
+    generate_biomes(server);
+    generate_command_parameter_ids(server);
 }
