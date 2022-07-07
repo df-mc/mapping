@@ -99,7 +99,7 @@ void generate_creative_items() {
  */
 void generate_item_names() {
     for (const auto &localization: I18n::mLanguages) {
-        auto code = localization->getFullLanguageCode();
+        std::string code = localization->getFullLanguageCode();
         I18n::chooseLanguage(code);
 
         auto entries = nlohmann::json::array();
@@ -140,8 +140,10 @@ void generate_item_names() {
             }
         }
 
+        std::replace(code.begin(), code.end(), '_', '-');
+
         std::ofstream output("mapping_files/lang/" + code + ".json");
-        output << std::setw(4) << entries << std::endl;
+        output << entries << std::endl;
         output.close();
 
         std::cout << "Generated item names for " << code << "!" << std::endl;
