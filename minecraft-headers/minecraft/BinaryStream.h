@@ -11,6 +11,8 @@ struct BinaryStream : ReadOnlyBinaryStream {
 
     void write(void const *, unsigned long);
 
+    void writeFloat(float);
+
     void writeUnsignedShort(unsigned short);
 
     void writeUnsignedVarInt(unsigned int);

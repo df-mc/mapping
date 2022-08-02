@@ -15,6 +15,7 @@
 #include <minecraft/BiomeRegistry.h>
 #include <minecraft/CreativeItemRegistry.h>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -24,6 +25,7 @@
 #include "minecraft/ListTag.h"
 #include "minecraft/I18n.h"
 #include "minecraft/ItemStack.h"
+#include "minecraft/BlockTypeRegistry.h"
 
 /**
  * Generates the vanilla block states and saves them in network little endian NBT.
@@ -132,6 +134,12 @@ void generate_item_names() {
                 object["id"] = id;
                 object["name"] = name;
                 if (aux > 0) {
+                    if (id == "minecraft:anvil") {
+                        if (aux > 8) {
+                            continue;
+                        }
+                        aux /= 4;
+                    }
                     object["meta"] = aux;
                 }
                 entries.push_back(object);
@@ -151,104 +159,25 @@ void generate_item_names() {
 }
 
 /**
- * Generates all shaped and shapeless recipes and saves them in network little endian NBT.
- * @param server
- */
-void generate_recipes(ServerInstance *server) {
-    ListTag shapelessRecipes;
-    ListTag shapedRecipes;
-
-    auto recipes = server->getMinecraft()->getLevel()->getRecipes().getRecipesAllTags();
-    for (auto const &[block, blockRecipes]: recipes) {
-        for (auto const &[id, recipe]: blockRecipes) {
-            if (block.str != "crafting_table") {
-                // Dragonfly only supports crafting table recipes at the moment anyway.
-                continue;
-            }
-
-            ListTag inputItems;
-            for (const auto &item: recipe->getIngredients()) {
-                CompoundTag inputItemTag;
-                inputItemTag.putString("name", item.getFullName());
-                inputItemTag.putInt("meta", item.getAuxValue());
-                inputItemTag.putInt("count", item.getStackSize());
-                inputItems.add(inputItemTag.clone());
-            }
-
-            ListTag outputItems;
-            for (const auto &item: recipe->getResultItem()) {
-                CompoundTag outputItemTag;
-                outputItemTag.putString("name", item.getItem()->getFullItemName());
-                outputItemTag.putInt("meta", item.getAuxValue());
-                outputItemTag.putInt("count", item.mCount);
-                if (item.isBlock()) {
-                    outputItemTag.putCompound("block", item.getBlock()->tag.clone());
-                }
-                if (item.hasUserData()) {
-                    outputItemTag.putCompound("nbt", item.getUserData()->clone());
-                }
-                outputItems.add(outputItemTag.clone());
-            }
-
-            CompoundTag recipeTag;
-            recipeTag.put("input", inputItems.copyList());
-            recipeTag.put("output", outputItems.copyList());
-
-            recipeTag.putString("block", block.str);
-            if (!recipe->isShapeless()) {
-                recipeTag.putInt("width", recipe->getWidth());
-                recipeTag.putInt("height", recipe->getHeight());
-            }
-            recipeTag.putInt("priority", recipe->getPriority());
-            if (recipe->isShapeless()) {
-                shapelessRecipes.add(recipeTag.clone());
-                continue;
-            }
-            shapedRecipes.add(recipeTag.clone());
-        }
-    }
-
-    CompoundTag craftingData;
-    craftingData.put("shaped", shapedRecipes.copyList());
-    craftingData.put("shapeless", shapelessRecipes.copyList());
-
-    auto stream = new BinaryStream();
-    stream->writeType(craftingData);
-
-    std::ofstream output("mapping_files/crafting_data.nbt");
-    output << stream->buffer;
-    output.close();
-
-    delete stream;
-
-    std::cout << "Generated recipes!" << std::endl;
-}
-
-/**
  * Generates block attributes for each block type, containing information for friction values, flame and burn odds,
  * destruction speeds, and more. This isn't used in Dragonfly, but is helpful for implementing blocks.
  * @param server
  */
 void generate_block_attributes(ServerInstance *server) {
-    auto entries = nlohmann::json::array();
+    auto stream = new BinaryStream();
     auto palette = server->getMinecraft()->getLevel()->getBlockPalette();
     for (unsigned int i = 0; i < palette->getNumBlockRuntimeIds(); i++) {
         auto state = palette->getBlock(i);
-        auto object = nlohmann::json::object();
-        auto properties = nlohmann::json::object();
-        // TODO: Properties?
-        object["name"] = state->blockLegacy->getFullName();
-        object["properties"] = properties;
-        object["destroy_speed"] = state->getDestroySpeed();
-        object["flame_odds"] = state->getFlameOdds();
-        object["burn_odds"] = state->getBurnOdds();
-        object["friction"] = state->getFriction();
-        entries.push_back(object);
+        stream->writeType(state->tag);
+        stream->writeFloat(state->getDestroySpeed());
+        stream->writeFloat(state->getExplosionResistance(nullptr));
     }
 
     std::ofstream output("mapping_files/extra/block_attributes.json");
-    output << std::setw(4) << entries << std::endl;
+    output << stream->buffer;
     output.close();
+
+    delete stream;
 
     std::cout << "Generated block attributes!" << std::endl;
 }
@@ -308,12 +237,14 @@ void generate_command_parameter_ids(ServerInstance *server) {
  */
 extern "C" void modloader_on_server_start(ServerInstance *server) {
     std::filesystem::create_directory("mapping_files");
-    generate_block_states(server);
-    generate_item_runtime_ids();
-    generate_creative_items();
-    generate_item_names();
+
+    std::cout << "Building data..." << std::endl;
+//    generate_block_states(server);
+//    generate_item_runtime_ids();
+//    generate_creative_items();
+//    generate_item_names();
     // TODO: Fix Recipe header (breaks on virtual functions?)
     generate_block_attributes(server);
-    generate_biomes(server);
-    generate_command_parameter_ids(server);
+//    generate_biomes(server);
+//    generate_command_parameter_ids(server);
 }

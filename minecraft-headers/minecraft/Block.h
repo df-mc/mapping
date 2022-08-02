@@ -7,13 +7,9 @@
 typedef CompoundTag BlockSerializationId;
 
 struct Block {
-    int getBurnOdds() const;
-
     float getDestroySpeed() const;
 
-    int getFlameOdds() const;
-
-    float getFriction() const;
+    float getExplosionResistance(class Actor *) const;
 
     virtual ~Block() {}
 

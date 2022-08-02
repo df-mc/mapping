@@ -2,11 +2,13 @@
 
 #include <string>
 #include <memory>
+#include <map>
 #include "Tag.h"
+#include "CompoundTagVariant.h"
 
 class CompoundTag : public Tag {
 public:
-    char filler[48];
+    std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, CompoundTagVariant, std::less<void>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, CompoundTagVariant> > > mTags;
 
     CompoundTag(void);
 
