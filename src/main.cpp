@@ -231,21 +231,24 @@ void generate_item_tags(ServerInstance *server) {
  * @param server
  */
 void generate_command_parameter_ids(ServerInstance *server) {
-    auto map = nlohmann::json::object();
+    auto list = nlohmann::json::array();
     auto registry = server->getMinecraft()->getCommands().getRegistry();
 
     for (int id = 0; id < 1000; id++) { //TODO: we can probably use CommandRegistry::forEachSymbol() for this instead
         int symbol = id | 0x100000;
         if (registry.isValid(symbol)) {
             auto name = registry.describe(symbol);
-            if (name != "undefined") {
-                map[name] = id;
+            if (name != "unknown") {
+                auto object = nlohmann::json::object();
+                object["name"] = name;
+                object["id"] = id;
+                list.push_back(object);
             }
         }
     }
 
     std::ofstream result("mapping_files/command_parameter_ids.json");
-    result << std::setw(4) << map << std::endl;
+    result << std::setw(4) << list << std::endl;
     result.close();
 
     std::cout << "Generated command parameter IDs!" << std::endl;
@@ -264,8 +267,8 @@ extern "C" void modloader_on_server_start(ServerInstance *server) {
 //    generate_creative_items();
 //    generate_item_names();
     // TODO: Fix Recipe header (breaks on virtual functions?)
-    generate_block_attributes(server);
+    //generate_block_attributes(server);
     generate_item_tags(server);
 //    generate_biomes(server);
-//    generate_command_parameter_ids(server);
+    generate_command_parameter_ids(server);
 }
