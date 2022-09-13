@@ -13,6 +13,8 @@ struct BinaryStream : ReadOnlyBinaryStream {
 
     void writeFloat(float);
 
+    void writeSignedInt(int32_t);
+
     void writeUnsignedShort(unsigned short);
 
     void writeUnsignedVarInt(unsigned int);

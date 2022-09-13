@@ -170,10 +170,13 @@ void generate_block_attributes(ServerInstance *server) {
         auto state = palette->getBlock(i);
         stream->writeType(state->tag);
         stream->writeFloat(state->getDestroySpeed());
+        stream->writeSignedInt(state->getFlameOdds());
+        stream->writeSignedInt(state->getBurnOdds());
+        stream->writeFloat(state->getTranslucency());
         stream->writeFloat(state->getExplosionResistance(nullptr));
     }
 
-    std::ofstream output("mapping_files/extra/block_attributes.json");
+    std::ofstream output("mapping_files/extra/block_attributes.nbt");
     output << stream->buffer;
     output.close();
 
@@ -203,6 +206,23 @@ void generate_biomes(ServerInstance *server) {
     result.close();
 
     std::cout << "Generated biomes!" << std::endl;
+}
+
+void generate_item_tags(ServerInstance *server) {
+    auto map = nlohmann::json::object();
+    for (const auto &pair: ItemRegistry::mTagToItemsMap) {
+        auto items = nlohmann::json::array();
+        for (const auto &item: pair.second) {
+            items.push_back(item->getFullItemName());
+        }
+        map[pair.first.str] = items;
+    }
+
+    std::ofstream result("mapping_files/extra/item_tags.json");
+    result << std::setw(4) << map << std::endl;
+    result.close();
+
+    std::cout << "Generated item tags!" << std::endl;
 }
 
 /**
@@ -245,6 +265,7 @@ extern "C" void modloader_on_server_start(ServerInstance *server) {
 //    generate_item_names();
     // TODO: Fix Recipe header (breaks on virtual functions?)
     generate_block_attributes(server);
+    generate_item_tags(server);
 //    generate_biomes(server);
 //    generate_command_parameter_ids(server);
 }

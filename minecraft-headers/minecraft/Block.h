@@ -9,6 +9,12 @@ typedef CompoundTag BlockSerializationId;
 struct Block {
     float getDestroySpeed() const;
 
+    int getFlameOdds(void) const;
+
+    int getBurnOdds(void) const;
+
+    float getTranslucency(void) const;
+
     float getExplosionResistance(class Actor *) const;
 
     virtual ~Block() {}
@@ -16,6 +22,6 @@ struct Block {
     unsigned short data;
     BlockLegacy *blockLegacy;
 
-    char filler2[80];
+    char filler2[96];
     BlockSerializationId tag;
 };
