@@ -121,7 +121,7 @@ void generate_item_names() {
                     break;
                 }
 
-                auto stack = new ItemStack(*item, 1, aux);
+                auto stack = new ItemStack(*item, 1, aux, nullptr);
                 auto name = item->buildDescriptionName(*stack);
                 if (name.length() == 0 || name.find('.') != std::string::npos) {
                     continue;
@@ -134,12 +134,6 @@ void generate_item_names() {
                 object["id"] = id;
                 object["name"] = name;
                 if (aux > 0) {
-                    if (id == "minecraft:anvil") {
-                        if (aux > 8) {
-                            continue;
-                        }
-                        aux /= 4;
-                    }
                     object["meta"] = aux;
                 }
                 entries.push_back(object);
@@ -191,14 +185,15 @@ void generate_block_attributes(ServerInstance *server) {
  * @param server
  */
 void generate_biomes(ServerInstance *server) {
-    auto map = nlohmann::json::object();
+    auto map = nlohmann::json::array();
     server->getMinecraft()->getLevel()->getBiomeRegistry()->forEachBiome([&map](Biome &biome) {
         auto object = nlohmann::json::object();
         object["id"] = biome.biomeId;
+        object["name"] = biome.name.str;
         object["temperature"] = biome.getDefaultBiomeTemperature();
         object["rainfall"] = biome.getDownfall();
 
-        map[biome.name] = object;
+        map.push_back(object);
     });
 
     std::ofstream result("mapping_files/extra/biomes.json");
@@ -209,17 +204,17 @@ void generate_biomes(ServerInstance *server) {
 }
 
 void generate_item_tags(ServerInstance *server) {
-    auto map = nlohmann::json::object();
+    auto tags = nlohmann::json::object();
     for (const auto &pair: ItemRegistry::mTagToItemsMap) {
         auto items = nlohmann::json::array();
         for (const auto &item: pair.second) {
             items.push_back(item->getFullItemName());
         }
-        map[pair.first.str] = items;
+        tags[pair.first.str] = items;
     }
 
     std::ofstream result("mapping_files/extra/item_tags.json");
-    result << std::setw(4) << map << std::endl;
+    result << std::setw(4) << tags << std::endl;
     result.close();
 
     std::cout << "Generated item tags!" << std::endl;
@@ -261,14 +256,16 @@ void generate_command_parameter_ids(ServerInstance *server) {
 extern "C" void modloader_on_server_start(ServerInstance *server) {
     std::filesystem::create_directory("mapping_files");
 
-    std::cout << "Building data..." << std::endl;
-//    generate_block_states(server);
-//    generate_item_runtime_ids();
-//    generate_creative_items();
-//    generate_item_names();
-    // TODO: Fix Recipe header (breaks on virtual functions?)
-    //generate_block_attributes(server);
-    generate_item_tags(server);
-//    generate_biomes(server);
-    generate_command_parameter_ids(server);
+    std::cout << "Generating chunks..." << std::endl;
+
+std::cout << "Building data..." << std::endl;
+generate_block_states(server);
+generate_item_runtime_ids();
+//generate_creative_items();
+//generate_item_names();
+// TODO: Fix Recipe header (breaks on virtual functions?)
+//generate_block_attributes(server);
+//generate_item_tags(server);
+    generate_biomes(server);
+//generate_command_parameter_ids(server);
 }

@@ -9,7 +9,7 @@ class ItemStack : public ItemStackBase {
 public:
     ItemStack(class ItemStack const &);
 
-    ItemStack(class Item const &, int, int);
+    ItemStack(const Item &, int, int, const CompoundTag *);
 
     ItemStack();
 };

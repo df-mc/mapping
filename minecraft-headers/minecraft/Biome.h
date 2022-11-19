@@ -1,15 +1,17 @@
 #pragma once
 
-#include <string>
+#include "HashedString.h"
 
 struct Biome {
-	void *vtable;
-	std::string name;
-	void *filler[10];
-	unsigned int biomeId;
+    HashedString name;
+    char filler[80];
+    unsigned int biomeId;
 
-	float getDefaultBiomeTemperature() const;
-	float getDownfall() const;
+    virtual ~Biome(void);
+
+    float getDefaultBiomeTemperature() const;
+
+    float getDownfall() const;
 };
 
 static_assert(sizeof(std::string) == 32);
